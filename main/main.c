@@ -11,10 +11,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "nvs_flash.h"
 #include "i2s_microphone.h"
 
@@ -117,7 +120,7 @@ static void example_basic_capture(void) {
             }
 
             float db = calculate_dbfs(peak);
-            ESP_LOGI(TAG, "Read %d samples, Peak: %d (%.1f dBFS)",
+            ESP_LOGI(TAG, "Read %zu samples, Peak: %"PRId32" (%.1f dBFS)",
                      samples_read, peak, db);
         }
 
@@ -233,12 +236,12 @@ static void example_statistics(void) {
             float rms_db = calculate_dbfs((int32_t)stats.rms_level);
 
             ESP_LOGI(TAG, "Statistics:");
-            ESP_LOGI(TAG, "  Total samples: %u", stats.samples_read);
-            ESP_LOGI(TAG, "  Peak amplitude: %d (%.1f dBFS)",
+            ESP_LOGI(TAG, "  Total samples: %"PRIu32, stats.samples_read);
+            ESP_LOGI(TAG, "  Peak amplitude: %"PRId32" (%.1f dBFS)",
                      stats.peak_amplitude, peak_db);
             ESP_LOGI(TAG, "  RMS level: %.0f (%.1f dBFS)",
                      stats.rms_level, rms_db);
-            ESP_LOGI(TAG, "  Buffer overruns: %u", stats.buffer_overruns);
+            ESP_LOGI(TAG, "  Buffer overruns: %"PRIu32, stats.buffer_overruns);
         }
 
         vTaskDelay(pdMS_TO_TICKS(2000)); // Update every 2 seconds
