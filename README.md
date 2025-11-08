@@ -52,25 +52,73 @@ Connect the INMP441 to your ESP32-C3:
 
 See [WIRING.md](WIRING.md) for detailed connection guide.
 
-### 2. Build and Flash
+### 2. Setup ESP-IDF Environment
+
+> **macOS Users:** See [SETUP_MACOS.md](SETUP_MACOS.md) for a complete macOS-specific setup guide with troubleshooting.
+
+**First Time Setup:**
+
+If you haven't installed ESP-IDF tools yet:
 
 ```bash
-# Set up ESP-IDF environment (if not already done)
-. $HOME/esp/esp-idf/export.sh
+# Navigate to your ESP-IDF installation
+cd /path/to/esp-idf
 
+# Install only ESP32-C3 tools (saves space and time)
+python3 tools/idf_tools.py install --targets esp32c3
+
+# Install Python dependencies
+python3 tools/idf_tools.py install-python-env
+```
+
+**Every Terminal Session:**
+
+You need to run this in every new terminal:
+
+```bash
+# Linux/macOS - from ESP-IDF directory
+. ./export.sh
+
+# Or if you're elsewhere:
+# Linux: . $HOME/esp/esp-idf/export.sh
+# macOS: . /Users/YOUR_USERNAME/development/esp-idf/export.sh
+```
+
+**Tip:** Add an alias to your shell profile (`~/.bashrc`, `~/.zshrc`):
+```bash
+alias get_idf='. /path/to/esp-idf/export.sh'
+```
+
+### 3. Build and Flash
+
+```bash
 # Navigate to project directory
-cd mica
+cd /path/to/mica
+
+# First time: Set target to ESP32-C3
+idf.py set-target esp32c3
 
 # Build the project
 idf.py build
 
+# Find your serial port:
+# Linux: ls /dev/ttyUSB* or /dev/ttyACM*
+# macOS: ls /dev/cu.usb*
+
 # Flash to ESP32-C3
+# Linux example:
 idf.py -p /dev/ttyUSB0 flash monitor
+
+# macOS example:
+idf.py -p /dev/cu.usbserial-14420 flash monitor
 ```
 
-Replace `/dev/ttyUSB0` with your ESP32-C3's serial port.
+**Common Serial Ports:**
+- **Linux**: `/dev/ttyUSB0`, `/dev/ttyACM0`
+- **macOS**: `/dev/cu.usbserial-*`, `/dev/cu.usbmodem*`, `/dev/cu.SLAB_USBtoUART`
+- **Windows**: `COM3`, `COM4`, etc.
 
-### 3. First Test
+### 4. First Test
 
 After flashing, you should see output like:
 
@@ -291,8 +339,11 @@ Measured on ESP32-C3 @ 160MHz:
 mica/
 ├── CMakeLists.txt              # Main CMake configuration
 ├── sdkconfig.defaults          # ESP32-C3 default configuration
+├── .gitignore                  # Git ignore file
 ├── README.md                   # This file
 ├── WIRING.md                   # Detailed wiring guide
+├── CONFIGURATION.md            # Configuration and customization guide
+├── SETUP_MACOS.md             # macOS-specific setup guide
 └── main/
     ├── CMakeLists.txt          # Component CMake configuration
     ├── main.c                  # Example applications
