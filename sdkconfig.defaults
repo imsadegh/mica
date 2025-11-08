@@ -1,0 +1,64 @@
+# ESP32-C3 Configuration for INMP441 High-Quality Microphone
+
+# Chip Configuration
+CONFIG_IDF_TARGET="esp32c3"
+CONFIG_IDF_TARGET_ESP32C3=y
+
+# Compiler Options - Optimize for performance
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
+
+# FreeRTOS Configuration
+CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_UNICORE=y
+
+# ESP32C3-Specific
+CONFIG_ESP32C3_DEFAULT_CPU_FREQ_160=y
+
+# Logging
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y
+
+# I2S Configuration
+CONFIG_I2S_ENABLE_DEBUG_LOG=n
+CONFIG_I2S_ISR_IRAM_SAFE=y
+
+# Memory Configuration
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# DMA Configuration
+CONFIG_SPI_DMA_CHAN_AUTO=y
+
+# Power Management (disable for better real-time performance)
+CONFIG_PM_ENABLE=n
+
+# WiFi (disable if not needed for better performance)
+# CONFIG_ESP32_WIFI_ENABLED=n
+
+# Bluetooth (disable if not needed)
+CONFIG_BT_ENABLED=n
+
+# Reduce bootloader log level for faster boot
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+
+# ESP Timer
+CONFIG_ESP_TIMER_TASK_STACK_SIZE=4096
+
+# Application Level Tracing
+CONFIG_APPTRACE_ENABLE=n
+
+# Flash Configuration
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+
+# Partition Table
+CONFIG_PARTITION_TABLE_SINGLE_APP=y
+
+# Stack overflow checking (disable in production for performance)
+CONFIG_ESP_SYSTEM_CHECK_INT_LEVEL_4=y
+
+# WDT Configuration
+CONFIG_ESP_TASK_WDT=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
