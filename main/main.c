@@ -45,7 +45,7 @@ static const char *TAG = "MAIN";
 
 #ifdef USE_VOICE_CONFIG
     #define SAMPLE_RATE     AUDIO_SAMPLE_RATE_16K
-    #define BIT_DEPTH       AUDIO_BIT_DEPTH_24  // INMP441 is 24-bit
+    #define BIT_DEPTH       AUDIO_BIT_DEPTH_32  // Use 32-bit for reliable operation
     #define DMA_BUF_COUNT   6
     #define DMA_BUF_LEN     512
     #define CONFIG_NAME     "Voice Quality"
