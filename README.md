@@ -28,6 +28,13 @@ A professional-grade I2S microphone driver for the INMP441 MEMS microphone modul
 - RMS and peak level calculation
 - Audio statistics tracking
 
+🎙️ **USB Audio Streaming**
+- Stream audio to Mac/PC over USB in real-time
+- Record to WAV files
+- Low latency (~50-100ms)
+- Python receiver script included
+- See [USB_STREAMING.md](USB_STREAMING.md) for details
+
 ## Hardware Requirements
 
 - **ESP32-C3** development board
@@ -187,7 +194,7 @@ Choose a configuration based on your application:
 
 ## Example Applications
 
-The project includes 5 example applications (see `main/main.c`):
+The project includes 6 example applications (see `main/main.c`):
 
 ### 1. Basic Capture
 Simple audio capture with periodic logging.
@@ -218,6 +225,21 @@ Automatic detection of voice presence.
 ```c
 #define EXAMPLE_MODE    EXAMPLE_VOICE_DETECTION
 ```
+
+### 6. USB Audio Streaming
+Stream audio to Mac/PC over USB for real-time playback or recording.
+```c
+#define EXAMPLE_MODE    EXAMPLE_USB_STREAM
+```
+
+**Usage:**
+1. Flash ESP32-C3 with this mode
+2. Run Python receiver on your Mac/PC:
+   ```bash
+   python3 usb_audio_receiver.py /dev/cu.usbmodem2101
+   ```
+
+See [USB_STREAMING.md](USB_STREAMING.md) for complete guide.
 
 ## API Reference
 
@@ -344,6 +366,9 @@ mica/
 ├── WIRING.md                   # Detailed wiring guide
 ├── CONFIGURATION.md            # Configuration and customization guide
 ├── SETUP_MACOS.md             # macOS-specific setup guide
+├── USB_STREAMING.md           # USB audio streaming guide
+├── usb_audio_receiver.py      # Python receiver script for USB streaming
+├── requirements.txt            # Python dependencies
 └── main/
     ├── CMakeLists.txt          # Component CMake configuration
     ├── main.c                  # Example applications

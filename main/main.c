@@ -83,6 +83,7 @@ typedef enum {
     EXAMPLE_STREAM,                 // Continuous audio streaming
     EXAMPLE_STATISTICS,             // Detailed audio statistics
     EXAMPLE_VOICE_DETECTION,        // Voice activity detection
+    EXAMPLE_USB_STREAM,             // USB serial audio streaming to PC/Mac
 } example_mode_t;
 
 // Select the example to run
@@ -295,6 +296,84 @@ static void example_voice_detection(void) {
     }
 }
 
+/**
+ * @brief Example 6: USB serial audio streaming to PC/Mac
+ *
+ * Streams audio data over USB serial connection for real-time playback
+ * or recording on PC/Mac. Use with the companion Python script.
+ *
+ * Protocol format (binary):
+ * - Sync header: 0xAA 0x55 (2 bytes)
+ * - Sample count: uint16_t (2 bytes) - number of samples in this packet
+ * - Audio data: int16_t array (sample_count * 2 bytes)
+ * - Checksum: uint8_t (1 byte) - simple XOR of all data bytes
+ */
+static void example_usb_stream(void) {
+    ESP_LOGI(TAG, "Starting USB audio streaming");
+    ESP_LOGI(TAG, "Use Python script on PC/Mac to receive audio");
+    ESP_LOGI(TAG, "Sample rate: %d Hz, Format: 16-bit PCM mono", SAMPLE_RATE);
+
+    const size_t CHUNK_SIZE = 256;  // Samples per packet
+    int16_t samples_16bit[CHUNK_SIZE];
+    int32_t samples_32bit[CHUNK_SIZE];
+    size_t samples_read = 0;
+
+    // Packet buffer: header(2) + count(2) + data(512) + checksum(1) = 517 bytes
+    uint8_t packet[2 + 2 + (CHUNK_SIZE * 2) + 1];
+
+    // Wait a moment for serial to stabilize
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    ESP_LOGI(TAG, "Streaming started!");
+
+    while (1) {
+        // Read audio samples
+        esp_err_t ret = i2s_mic_read_samples(samples_32bit, CHUNK_SIZE, &samples_read, 100);
+
+        if (ret == ESP_OK && samples_read > 0) {
+            // Convert 32-bit samples to 16-bit for transmission
+            for (size_t i = 0; i < samples_read; i++) {
+                // Scale down from 32-bit to 16-bit
+                samples_16bit[i] = (int16_t)(samples_32bit[i] >> 16);
+            }
+
+            // Build packet
+            size_t idx = 0;
+
+            // Sync header
+            packet[idx++] = 0xAA;
+            packet[idx++] = 0x55;
+
+            // Sample count (little-endian)
+            uint16_t count = (uint16_t)samples_read;
+            packet[idx++] = count & 0xFF;
+            packet[idx++] = (count >> 8) & 0xFF;
+
+            // Audio data
+            uint8_t checksum = 0;
+            for (size_t i = 0; i < samples_read; i++) {
+                packet[idx] = samples_16bit[i] & 0xFF;
+                checksum ^= packet[idx];
+                idx++;
+
+                packet[idx] = (samples_16bit[i] >> 8) & 0xFF;
+                checksum ^= packet[idx];
+                idx++;
+            }
+
+            // Checksum
+            packet[idx++] = checksum;
+
+            // Send packet over USB serial
+            fwrite(packet, 1, idx, stdout);
+            fflush(stdout);
+        }
+
+        // Small delay to prevent overwhelming the serial port
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+
 void app_main(void) {
     ESP_LOGI(TAG, "====================================");
     ESP_LOGI(TAG, "ESP32-C3 INMP441 Microphone Example");
@@ -366,6 +445,10 @@ void app_main(void) {
 
         case EXAMPLE_VOICE_DETECTION:
             example_voice_detection();
+            break;
+
+        case EXAMPLE_USB_STREAM:
+            example_usb_stream();
             break;
 
         default:
