@@ -1,3 +1,3 @@
 idf_component_register(SRCS "main.c" "i2s_microphone.c"
                     INCLUDE_DIRS "."
-                    REQUIRES driver esp_timer)
+                    REQUIRES driver esp_timer nvs_flash)
