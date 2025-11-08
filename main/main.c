@@ -90,12 +90,29 @@ typedef enum {
 #define EXAMPLE_MODE    EXAMPLE_LEVEL_METER
 
 /**
+ * @brief Safe absolute value function
+ *
+ * Handles the special case of INT32_MIN which cannot be represented
+ * as a positive value in int32_t (INT32_MAX = 2,147,483,647).
+ * Returns INT32_MAX for INT32_MIN to avoid undefined behavior.
+ */
+static inline int32_t safe_abs(int32_t x) {
+    if (x == INT32_MIN) {
+        return INT32_MAX;
+    }
+    return (x < 0) ? -x : x;
+}
+
+/**
  * @brief Convert dBFS (decibels relative to full scale)
+ *
+ * Note: Returns -96.0 dBFS for zero samples (theoretical floor for 16-bit audio).
+ * For true silence, consider using -INFINITY instead.
  */
 static float calculate_dbfs(int32_t sample) {
-    if (sample == 0) return -96.0f;
+    if (sample == 0) return -96.0f;  // Theoretical floor for 16-bit audio
 
-    float normalized = (float)abs(sample) / (float)INT32_MAX;
+    float normalized = (float)safe_abs(sample) / (float)INT32_MAX;
     return 20.0f * log10f(normalized);
 }
 
@@ -115,7 +132,7 @@ static void example_basic_capture(void) {
             // Find peak sample
             int32_t peak = 0;
             for (size_t i = 0; i < samples_read; i++) {
-                if (abs(samples[i]) > abs(peak)) {
+                if (safe_abs(samples[i]) > safe_abs(peak)) {
                     peak = samples[i];
                 }
             }
@@ -151,7 +168,7 @@ static void example_level_meter(void) {
                 int64_t normalized = samples[i] >> 16;
                 sum_squares += normalized * normalized;
 
-                if (abs(samples[i]) > abs(peak)) {
+                if (safe_abs(samples[i]) > safe_abs(peak)) {
                     peak = samples[i];
                 }
             }
@@ -335,6 +352,11 @@ static void example_usb_stream(void) {
         esp_err_t ret = i2s_mic_read_samples(samples_32bit, CHUNK_SIZE, &samples_read, 100);
 
         if (ret == ESP_OK && samples_read > 0) {
+            // CRITICAL: Validate samples_read to prevent buffer overflow
+            if (samples_read > CHUNK_SIZE) {
+                samples_read = CHUNK_SIZE;  // Clamp to buffer size
+            }
+
             // Convert 32-bit samples to 16-bit for transmission
             for (size_t i = 0; i < samples_read; i++) {
                 // Scale down from 32-bit to 16-bit

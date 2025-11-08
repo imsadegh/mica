@@ -14,6 +14,9 @@
 
 static const char *TAG = "I2S_MIC";
 
+// Maximum samples in a single read operation (matches largest example buffer)
+#define MAX_SAMPLES_PER_READ 1024
+
 // I2S handle
 static i2s_chan_handle_t rx_handle = NULL;
 
@@ -23,12 +26,34 @@ static audio_stats_t stats = {0};
 static bool is_initialized = false;
 static bool is_running = false;
 
+// Pre-allocated buffer for sample conversion (avoids malloc/free in hot path)
+// Size: MAX_SAMPLES_PER_READ * 4 bytes (32-bit is largest) = 4096 bytes
+static uint8_t raw_buffer[MAX_SAMPLES_PER_READ * 4];
+
 /**
  * @brief Convert 24-bit data to 32-bit signed integer
+ *
+ * Note: Assumes little-endian byte order from I2S DMA.
+ * INMP441 outputs MSB-first in I2S frame, but ESP32 I2S peripheral
+ * stores samples in little-endian format in memory.
  */
 static inline int32_t convert_24bit_to_32bit(const uint8_t *data) {
     int32_t value = (data[2] << 24) | (data[1] << 16) | (data[0] << 8);
     return value; // Sign-extended 24-bit to 32-bit
+}
+
+/**
+ * @brief Safe absolute value function
+ *
+ * Handles the special case of INT32_MIN which cannot be represented
+ * as a positive value in int32_t (INT32_MAX = 2,147,483,647).
+ * Returns INT32_MAX for INT32_MIN to avoid undefined behavior.
+ */
+static inline int32_t safe_abs(int32_t x) {
+    if (x == INT32_MIN) {
+        return INT32_MAX;
+    }
+    return (x < 0) ? -x : x;
 }
 
 /**
@@ -52,7 +77,7 @@ static void update_stats(const int32_t *samples, size_t num_samples) {
     int32_t peak = 0;
 
     for (size_t i = 0; i < num_samples; i++) {
-        int32_t abs_sample = abs(samples[i]);
+        int32_t abs_sample = safe_abs(samples[i]);
         if (abs_sample > peak) {
             peak = abs_sample;
         }
@@ -226,8 +251,18 @@ esp_err_t i2s_mic_read(void *buffer, size_t buffer_size, size_t *bytes_read, uin
     esp_err_t ret = i2s_channel_read(rx_handle, buffer, buffer_size, bytes_read,
                                      pdMS_TO_TICKS(timeout_ms));
 
+    // Track buffer underruns (timeout or incomplete read)
+    if (ret == ESP_ERR_TIMEOUT) {
+        stats.buffer_underruns++;
+    } else if (ret == ESP_OK && *bytes_read < buffer_size) {
+        // Got less data than requested, might indicate underrun
+        stats.buffer_underruns++;
+    }
+
     if (ret != ESP_OK && ret != ESP_ERR_TIMEOUT) {
         ESP_LOGE(TAG, "Failed to read from I2S: %s", esp_err_to_name(ret));
+        // Other errors might indicate buffer overrun or hardware issues
+        stats.buffer_overruns++;
     }
 
     return ret;
@@ -245,14 +280,15 @@ esp_err_t i2s_mic_read_samples(int32_t *samples, size_t num_samples,
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Bounds check to prevent buffer overflow
+    if (num_samples > MAX_SAMPLES_PER_READ) {
+        ESP_LOGE(TAG, "Requested samples (%zu) exceeds maximum (%d)",
+                 num_samples, MAX_SAMPLES_PER_READ);
+        return ESP_ERR_INVALID_ARG;
+    }
+
     size_t bytes_per_sample = mic_config.bit_depth / 8;
     size_t buffer_size = num_samples * bytes_per_sample;
-    uint8_t *raw_buffer = malloc(buffer_size);
-
-    if (raw_buffer == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate buffer");
-        return ESP_ERR_NO_MEM;
-    }
 
     size_t bytes_read = 0;
     esp_err_t ret = i2s_mic_read(raw_buffer, buffer_size, &bytes_read, timeout_ms);
@@ -276,13 +312,16 @@ esp_err_t i2s_mic_read_samples(int32_t *samples, size_t num_samples,
             for (size_t i = 0; i < *samples_read; i++) {
                 samples[i] = apply_gain(raw_samples[i], mic_config.gain);
             }
+        } else {
+            // Invalid bit depth - should never happen if validated in init
+            ESP_LOGE(TAG, "Invalid bit depth: %d", mic_config.bit_depth);
+            return ESP_ERR_INVALID_STATE;
         }
 
         // Update statistics
         update_stats(samples, *samples_read);
     }
 
-    free(raw_buffer);
     return ret;
 }
 
