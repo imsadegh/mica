@@ -312,6 +312,8 @@ static void example_usb_stream(void) {
     ESP_LOGI(TAG, "Starting USB audio streaming");
     ESP_LOGI(TAG, "Use Python script on PC/Mac to receive audio");
     ESP_LOGI(TAG, "Sample rate: %d Hz, Format: 16-bit PCM mono", SAMPLE_RATE);
+    ESP_LOGI(TAG, "Waiting 3 seconds before streaming...");
+    ESP_LOGI(TAG, "Close this monitor and run: python3 usb_audio_receiver.py /dev/cu.usbmodem2101");
 
     const size_t CHUNK_SIZE = 256;  // Samples per packet
     int16_t samples_16bit[CHUNK_SIZE];
@@ -321,10 +323,12 @@ static void example_usb_stream(void) {
     // Packet buffer: header(2) + count(2) + data(512) + checksum(1) = 517 bytes
     uint8_t packet[2 + 2 + (CHUNK_SIZE * 2) + 1];
 
-    // Wait a moment for serial to stabilize
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    // Wait a moment for user to close monitor and start Python script
+    vTaskDelay(pdMS_TO_TICKS(3000));
 
-    ESP_LOGI(TAG, "Streaming started!");
+    // CRITICAL: Disable ALL logging before streaming binary data
+    // Text logs will corrupt the binary audio stream!
+    esp_log_level_set("*", ESP_LOG_NONE);
 
     while (1) {
         // Read audio samples
