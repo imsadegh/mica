@@ -128,27 +128,16 @@ esp_err_t i2s_mic_init(const i2s_mic_config_t *config) {
     }
 
     // Configure I2S standard mode for INMP441
-    // INMP441 is 24-bit microphone - use MCLK_MULTIPLE_384 for accurate sample rate
     i2s_std_config_t std_cfg = {
         .clk_cfg = {
             .sample_rate_hz = config->sample_rate,
             .clk_src = I2S_CLK_SRC_DEFAULT,
             .mclk_multiple = I2S_MCLK_MULTIPLE_384,
         },
-        // CRITICAL: INMP441 specific slot configuration
-        // Do NOT use default Philips config - INMP441 needs bit_shift=false!
-        .slot_cfg = {
-            .data_bit_width = (i2s_data_bit_width_t)config->bit_depth,
-            .slot_bit_width = (i2s_slot_bit_width_t)config->bit_depth,
-            .slot_mode = I2S_SLOT_MODE_MONO,
-            .slot_mask = I2S_STD_SLOT_RIGHT,  // L/R pin = VDD (change to LEFT if L/R=GND)
-            .ws_width = config->bit_depth,
-            .ws_pol = false,        // INMP441: WS low for left, high for right
-            .bit_shift = false,     // CRITICAL: INMP441 has no bit shift!
-            .left_align = true,     // INMP441: MSB aligned
-            .big_endian = false,
-            .bit_order_lsb = false,
-        },
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(
+            (i2s_data_bit_width_t)config->bit_depth,
+            I2S_SLOT_MODE_MONO
+        ),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = config->sck_pin,
@@ -162,6 +151,10 @@ esp_err_t i2s_mic_init(const i2s_mic_config_t *config) {
             },
         },
     };
+
+    // Configure slot for right channel (INMP441 with L/R = VDD)
+    // Change to I2S_STD_SLOT_LEFT if your L/R pin is connected to GND
+    std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_RIGHT;
 
     ret = i2s_channel_init_std_mode(rx_handle, &std_cfg);
     if (ret != ESP_OK) {
