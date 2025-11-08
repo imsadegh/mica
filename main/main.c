@@ -45,7 +45,7 @@ static const char *TAG = "MAIN";
 
 #ifdef USE_VOICE_CONFIG
     #define SAMPLE_RATE     AUDIO_SAMPLE_RATE_16K
-    #define BIT_DEPTH       AUDIO_BIT_DEPTH_32
+    #define BIT_DEPTH       AUDIO_BIT_DEPTH_24  // INMP441 is 24-bit
     #define DMA_BUF_COUNT   6
     #define DMA_BUF_LEN     512
     #define CONFIG_NAME     "Voice Quality"
@@ -87,7 +87,7 @@ typedef enum {
 } example_mode_t;
 
 // Select the example to run
-#define EXAMPLE_MODE    EXAMPLE_LEVEL_METER
+#define EXAMPLE_MODE    EXAMPLE_USB_STREAM
 
 /**
  * @brief Safe absolute value function

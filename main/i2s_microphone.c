@@ -141,9 +141,9 @@ esp_err_t i2s_mic_init(const i2s_mic_config_t *config) {
             .data_bit_width = (i2s_data_bit_width_t)config->bit_depth,
             .slot_bit_width = (i2s_slot_bit_width_t)config->bit_depth,
             .slot_mode = I2S_SLOT_MODE_MONO,
-            .slot_mask = I2S_STD_SLOT_LEFT,  // L/R pin = GND
+            .slot_mask = I2S_STD_SLOT_RIGHT,  // L/R pin = VDD (change to LEFT if L/R=GND)
             .ws_width = config->bit_depth,
-            .ws_pol = false,        // INMP441: WS low for left channel
+            .ws_pol = false,        // INMP441: WS low for left, high for right
             .bit_shift = false,     // CRITICAL: INMP441 has no bit shift!
             .left_align = true,     // INMP441: MSB aligned
             .big_endian = false,
