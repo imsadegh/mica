@@ -128,16 +128,27 @@ esp_err_t i2s_mic_init(const i2s_mic_config_t *config) {
     }
 
     // Configure I2S standard mode for INMP441
+    // INMP441 is 24-bit microphone - use MCLK_MULTIPLE_384 for accurate sample rate
     i2s_std_config_t std_cfg = {
         .clk_cfg = {
             .sample_rate_hz = config->sample_rate,
             .clk_src = I2S_CLK_SRC_DEFAULT,
             .mclk_multiple = I2S_MCLK_MULTIPLE_384,
         },
-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(
-            (i2s_data_bit_width_t)config->bit_depth,
-            I2S_SLOT_MODE_MONO
-        ),
+        // CRITICAL: INMP441 specific slot configuration
+        // Do NOT use default Philips config - INMP441 needs bit_shift=false!
+        .slot_cfg = {
+            .data_bit_width = I2S_DATA_BIT_WIDTH_24BIT,  // INMP441 outputs 24-bit
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_32BIT,  // Use 32-bit slot for 24-bit data
+            .slot_mode = I2S_SLOT_MODE_MONO,
+            .slot_mask = I2S_STD_SLOT_RIGHT,  // L/R pin = VDD (change to LEFT if L/R=GND)
+            .ws_width = 32,                   // Match slot width
+            .ws_pol = false,        // INMP441: WS low for left, high for right
+            .bit_shift = false,     // CRITICAL: INMP441 has no bit shift!
+            .left_align = true,     // INMP441: MSB aligned (24-bit in upper bits of 32-bit slot)
+            .big_endian = false,
+            .bit_order_lsb = false,
+        },
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = config->sck_pin,
@@ -151,10 +162,6 @@ esp_err_t i2s_mic_init(const i2s_mic_config_t *config) {
             },
         },
     };
-
-    // Configure slot for right channel (INMP441 with L/R = VDD)
-    // Change to I2S_STD_SLOT_LEFT if your L/R pin is connected to GND
-    std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_RIGHT;
 
     ret = i2s_channel_init_std_mode(rx_handle, &std_cfg);
     if (ret != ESP_OK) {
@@ -288,7 +295,15 @@ esp_err_t i2s_mic_read_samples(int32_t *samples, size_t num_samples,
         return ESP_ERR_INVALID_ARG;
     }
 
-    size_t bytes_per_sample = mic_config.bit_depth / 8;
+    // IMPORTANT: When using 24-bit data in 32-bit slots, ESP32 I2S transfers 4 bytes per sample
+    // The 24-bit data is left-aligned in the upper 24 bits of the 32-bit word
+    size_t bytes_per_sample;
+    if (mic_config.bit_depth == AUDIO_BIT_DEPTH_24) {
+        bytes_per_sample = 4;  // 24-bit data uses 32-bit slots (4 bytes)
+    } else {
+        bytes_per_sample = mic_config.bit_depth / 8;
+    }
+
     size_t buffer_size = num_samples * bytes_per_sample;
 
     size_t bytes_read = 0;
@@ -304,9 +319,11 @@ esp_err_t i2s_mic_read_samples(int32_t *samples, size_t num_samples,
                 samples[i] = apply_gain((int32_t)raw_samples[i] << 16, mic_config.gain);
             }
         } else if (mic_config.bit_depth == AUDIO_BIT_DEPTH_24) {
+            // 24-bit data in 32-bit slots: data is left-aligned (upper 24 bits valid)
+            // Just use the 32-bit value directly - the 24-bit data is already in the upper bits
+            int32_t *raw_samples = (int32_t *)raw_buffer;
             for (size_t i = 0; i < *samples_read; i++) {
-                int32_t sample = convert_24bit_to_32bit(&raw_buffer[i * 3]);
-                samples[i] = apply_gain(sample, mic_config.gain);
+                samples[i] = apply_gain(raw_samples[i], mic_config.gain);
             }
         } else if (mic_config.bit_depth == AUDIO_BIT_DEPTH_32) {
             int32_t *raw_samples = (int32_t *)raw_buffer;
