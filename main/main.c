@@ -87,7 +87,8 @@ typedef enum {
 } example_mode_t;
 
 // Select the example to run
-#define EXAMPLE_MODE    EXAMPLE_USB_STREAM
+// #define EXAMPLE_MODE    EXAMPLE_USB_STREAM
+#define EXAMPLE_MODE    EXAMPLE_LEVEL_METER
 
 /**
  * @brief Safe absolute value function
